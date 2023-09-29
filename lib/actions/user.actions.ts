@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import User from "../models/user.models";
-import { connectToDb } from "../mongoose";
+import { connectToDB } from "../mongoose";
 
 interface Params {
   userId: string;
@@ -15,15 +15,15 @@ interface Params {
 
 export async function updateUser({
   userId,
-  username,
-  name,
   bio,
-  image,
+  name,
   path,
+  username,
+  image,
 }: Params): Promise<void> {
-  connectToDb();
-
   try {
+    connectToDB();
+
     await User.findOneAndUpdate(
       { id: userId },
       {
@@ -33,15 +33,13 @@ export async function updateUser({
         image,
         onboarded: true,
       },
-      {
-        upsert: true,
-      }
+      { upsert: true }
     );
 
     if (path === "/profile/edit") {
       revalidatePath(path);
     }
   } catch (error: any) {
-    throw new Error(`Failed to create/update user: ${error.mesagge}`);
+    throw new Error(`Failed to create/update user: ${error.message}`);
   }
 }
