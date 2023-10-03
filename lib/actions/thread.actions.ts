@@ -1,4 +1,4 @@
-"use server"
+"use server";
 
 import { revalidatePath } from "next/cache";
 import Thread from "../models/thread.model";
@@ -12,7 +12,12 @@ interface Params {
   path: string;
 }
 
-export async function createThread({ text, author, communityId, path }: Params) {
+export async function createThread({
+  text,
+  author,
+  communityId,
+  path,
+}: Params) {
   try {
     connectToDB();
 
@@ -31,4 +36,34 @@ export async function createThread({ text, author, communityId, path }: Params) 
   } catch (error: any) {
     throw new Error(`Error creating thread ${error.message}`);
   }
+}
+
+export async function fecthPosts(pageNumber = 1, pageSize = 20) {
+  connectToDB();
+
+  // Claculate the numn of posts
+  const skipAmount = (pageNumber - 1) * pageSize;
+
+  // Fetch the post that have no parents (top-level threads only)
+  const postsQuery = Thread.find({ parentId: { $in: [null, undefined] } })
+    .sort({ createdAt: "desc" })
+    .skip(skipAmount)
+    .limit(pageSize)
+    .populate({ path: "author", model: User })
+    .populate({
+      path: "children",
+      populate: {
+        path: "author",
+        model: User,
+        select: "_id name parentId image",
+      },
+    });
+
+  const totalPostsCount = await Thread.countDocuments({ parentId: { $in: [null, undefined]} });
+
+  const posts = await postsQuery.exec();
+
+  const isNext = totalPostsCount > skipAmount + posts.length;
+
+  return { posts, isNext };
 }
