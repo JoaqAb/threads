@@ -38,7 +38,7 @@ export async function createThread({
   }
 }
 
-export async function fecthPosts(pageNumber = 1, pageSize = 20) {
+export async function fetchPosts(pageNumber = 1, pageSize = 20) {
   connectToDB();
 
   // Claculate the numn of posts
@@ -59,11 +59,50 @@ export async function fecthPosts(pageNumber = 1, pageSize = 20) {
       },
     });
 
-  const totalPostsCount = await Thread.countDocuments({ parentId: { $in: [null, undefined]} });
+  const totalPostsCount = await Thread.countDocuments({
+    parentId: { $in: [null, undefined] },
+  });
 
   const posts = await postsQuery.exec();
 
   const isNext = totalPostsCount > skipAmount + posts.length;
 
   return { posts, isNext };
+}
+
+export async function fetchThreadById(id: string) {
+  connectToDB();
+
+  try {
+    // TODO populate community
+    const thread = await Thread.findById(id)
+      .populate({
+        path: "author",
+        model: User,
+        select: "_id id name iamge",
+      })
+      .populate({
+        path: "children",
+        populate: [
+          {
+            path: "author",
+            model: User,
+            select: "_id id name parentId image"
+          },
+          {
+            path: "children",
+            model: Thread,
+            populate: {
+              path: "author",
+              model: User,
+              select: "_id id name parentId image"
+            },
+          },
+        ],
+      }).exec();
+
+      return thread;
+  } catch (error: any) {
+    throw new Error(`Error fetching thread: ${error.message}`)
+  }
 }
